@@ -525,6 +525,110 @@ ORDER BY negative_feedback_pct DESC;
 
 
 
+-- ----------------------- DAY - 06 -------------
+
+-- 1. Create a cleaned version of `email` such that:
+--    * it is fully lowercase
+--    * leading/trailing spaces are removed
+--    * output column name: `clean_email`
+
+SELECT
+	email AS uncleaned_email,
+	LOWER(TRIM(email)) AS clean_email
+FROM feedback;
+
+
+-- 2. Extract **username** (part before `@`) from `email` and convert it to **uppercase** and ensure there is no '.' between names.
+SELECT
+	email,
+	UPPER(REPLACE(SPLIT_PART(email, '@', 1), '.', ' ')) AS extracted_name
+FROM feedback;
+
+
+-- 3. Identify feedback records where `feedback_text` **starts with** the word *“product”* (case-insensitive).
+SELECT
+	INITCAP(feedback_text)
+FROM feedback
+WHERE LOWER(feedback_text) LIKE 'product%'
+
+
+-- 4. Replace **multiple consecutive spaces** in `customer_name` with a **single space**.
+SELECT
+	REGEXP_REPLACE(customer_name, '\s+', ' ', 'g') AS customer_name
+FROM feedback;
+
+
+-- 5. Find customers whose `customer_name` contains **exactly two words** (first + last name only).
+-- Note:- Here all this mean the exact thing :-
+	-- LOWER(TRIM(customer_name)) LIKE ~ '^[a-z]+\s[a-z]+$'	
+	-- TRIM(customer_name) ~ '^[A-Za-z]+\s[A-Za-z]+$'
+SELECT
+	customer_name
+FROM feedback
+WHERE TRIM(customer_name) ~* '^[a-z]+\s[a-z]+$';
+
+
+
+-- 6. Mask the email such that:
+--    * only first 2 characters of username are visible
+--    * rest replaced with `*`
+--      Example: `ra****@gmail.com`
+WITH masking AS (
+	SELECT
+		*,
+		LEFT(SPLIT_PART(email, '@', 1), 2)
+		|| REPEAT('*', LENGTH(SPLIT_PART(email, '@', 1)) - 2)
+		|| SPLIT_PART(email, '@', 2) AS masked_email
+	FROM feedback
+)
+SELECT
+	email,
+	LOWER(masked_email) AS masked_email
+FROM masking;
+
+
+-- 7. Extract the **month name** (January, February, …) from `feedback_date` as a string.
+SELECT 
+	feedback_id,
+	feedback_date,
+	TO_CHAR(feedback_date, 'FMMonth') AS feedback_month
+FROM feedback;
+
+
+-- 8. Count how many times the word **“product”** appears in each `feedback_text` (each row) (case-insensitive).
+SELECT
+    feedback_id,
+    feedback_text,
+    regexp_count(LOWER(feedback_text), 'product') AS product_count
+FROM feedback
+ORDER BY product_count DESC;
+
+
+-- 9. Create a column `feedback_summary`:
+--    * first **15 characters** of `feedback_text`
+--    * append `...` if original text length > 15
+SELECT
+	CASE 	
+		WHEN LENGTH(feedback_text) > 15 
+			THEN LEFT(feedback_text, 15) || '...'
+	END AS feedback_summary
+FROM feedback;
+
+
+-- 10. Identify feedbacks where:
+--     * `email` domain is **gmail**
+--     * AND `feedback_text` contains **both** `delivery` and `product` (any case)
+SELECT
+	INITCAP(TRIM(customer_name)) AS customer_name,
+	LOWER(email) AS email,
+	INITCAP(feedback_text) AS feedback_text,
+	TO_CHAR(feedback_date, 'dd-Mon-yyyy') AS feedback_date
+FROM feedback
+WHERE 
+	LOWER(email) LIKE '%@gmail%'
+	AND feedback_text LIKE '%delivery%'
+	AND feedback_text LIKE '%product%';
+
 
 
 
