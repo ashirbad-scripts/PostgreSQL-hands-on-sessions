@@ -631,6 +631,145 @@ WHERE
 
 
 
+-- ----------------------- DAY - 07 ----------------------
+-- Step 1: Create the table
+CREATE TABLE emp_performance (
+    emp_id             INT PRIMARY KEY,
+    emp_name           VARCHAR(100),
+    department         VARCHAR(50),
+    review_date        DATE,
+    performance_score  INT
+);
+
+-- Step 2: Insert the records
+INSERT INTO emp_performance (emp_id, emp_name, department, review_date, performance_score) VALUES
+(1, 'Rahul', 'Sales', '2024-01-10', 88),
+(2, 'Neha', 'Sales', '2024-01-12', 92),
+(3, 'Amit', 'Sales', '2024-01-15', 88),
+(4, 'Pooja', 'Marketing', '2024-01-11', 91),
+(5, 'Karan', 'Marketing', '2024-01-18', 85),
+(6, 'Sneha', 'Marketing', '2024-01-20', 91),
+(7, 'Arjun', 'Finance', '2024-01-09', 95),
+(8, 'Meera', 'Finance', '2024-01-14', 89),
+(9, 'Rohan', 'Finance', '2024-01-22', 89),
+(10, 'Isha', 'Finance', '2024-01-25', 83);
+
+-- QUESTIONS :-
+
+-- 1. Rank employees **within each department** based on `performance_score` (highest first) using `RANK()`.
+SELECT
+	*,
+	RANK() OVER(PARTITION BY department ORDER BY performance_score DESC) AS rnk
+FROM emp_performance
+ORDER BY rnk ASC;
+
+
+-- 2. Assign a **dense rank** to employees **across the entire company** based on `performance_score`.
+SELECT
+	*,
+	DENSE_RANK() OVER(ORDER BY performance_score DESC) AS rnk
+FROM emp_performance
+ORDER BY rnk ASC;
+
+
+-- 3. For each department, display the **top performer’s score** on every row using `FIRST_VALUE()`.
+SELECT
+	*,
+	FIRST_VALUE(performance_score) OVER(
+		PARTITION BY department
+		ORDER BY performance_score DESC	
+	) AS top_performer_score
+FROM emp_performance
+ORDER BY department;
+
+
+-- 4. For each department, display the **lowest performer’s score** on every row using `LAST_VALUE()`
+--    *(pay attention to window frame — this is an interviewer trap).*
+SELECT
+	*,
+	LAST_VALUE(performance_score) OVER(
+		PARTITION BY department 
+		ORDER BY performance_score DESC
+		ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
+	) AS lowest_score
+FROM emp_performance
+ORDER BY department;
+
+	--NOTE :- Dont get confused with asc and desc in first and last value
+
+	
+-- 5. Divide employees **within each department** into **2 performance buckets** using `NTILE(2)`.
+SELECT
+	*,
+	NTILE(2) OVER(PARTITION BY department ORDER BY performance_score DESC) AS performance_buckets
+FROM emp_performance;
+
+
+-- 6. Calculate the **previous employee’s performance score** within the same department ordered by `review_date`.
+SELECT
+	*,
+	LAG(performance_score) OVER(PARTITION BY department ORDER BY review_date) AS prev_emp_score
+FROM emp_performance;
+
+
+-- 7. Calculate the **difference between current and previous performance score** within each department.
+SELECT
+	*,
+	performance_score - LAG(performance_score) OVER(PARTITION BY department ORDER BY review_date) AS score_diff
+FROM emp_performance;
+
+
+-- 8. For each department, compute the **average performance score** and show it alongside each employee record.
+SELECT
+	*,
+	ROUND(AVG(performance_score) OVER(PARTITION BY department), 2) AS dept_avg_score
+FROM emp_performance;
+
+
+-- 9. Assign a **row number** to employees **within each department**, ordered by `review_date`.
+SELECT
+	*,
+	ROW_NUMBER() OVER(PARTITION BY department ORDER BY review_date) AS reviewed_order
+FROM emp_performance;
+
+
+-- 10. Identify employees whose `performance_score` is **above their department’s average**, using a window aggregate.
+
+-- Non- Window Version
+WITH CTE AS (
+	SELECT 
+		department,
+		AVG(performance_score) AS dept_avg
+	FROM emp_performance
+	GROUP BY department
+)
+SELECT 
+	e.emp_id,
+	e.performance_score,
+	e.department,
+	ROUND(d.dept_avg, 2)
+FROM emp_performance e
+JOIN CTE d ON d.department = e.department
+WHERE e.performance_score > d.dept_avg;
+
+
+-- Window Frame Version (better)
+SELECT
+	emp_id,
+	emp_name,
+	department,
+	performance_score,
+	ROUND(dept_avg, 2)
+FROM (
+	SELECT
+		emp_id,
+		emp_name,
+		department,
+		performance_score,
+		AVG(performance_score) OVER(PARTITION BY department) AS dept_avg
+	FROM emp_performance
+) t
+WHERE performance_score > dept_avg
 
 
 
